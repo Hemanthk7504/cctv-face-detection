@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+itsdangerous
+sqlalchemy
+psycopg2-binary
+opencv-python-headless
+numpy
+huggingface_hub
+openai

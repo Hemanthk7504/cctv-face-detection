@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block h %}Operations Command Dashboard{% endblock %}
+{% block sub %}Real-time surveillance telemetry, biometric matches & security status{% endblock %}
+
+{% block body %}
+<!-- KPI Stat Strip -->
+<div class="stat-strip">
+  <div class="stat-card cyan">
+    <div class="stat-title">Active Cameras</div>
+    <div class="stat-val" id="kpi-cams">{{ st.cams }}</div>
+    <div class="stat-sub">🟢 {{ st.active_streams }} streams live</div>
+  </div>
+  <div class="stat-card emerald">
+    <div class="stat-title">Known Identities</div>
+    <div class="stat-val" id="kpi-people">{{ st.people }}</div>
+    <div class="stat-sub">Indexed in SFace Registry</div>
+  </div>
+  <div class="stat-card amber">
+    <div class="stat-title">Logged Sightings</div>
+    <div class="stat-val" id="kpi-sightings">{{ st.sightings }}</div>
+    <div class="stat-sub">Total facial matches logged</div>
+  </div>
+  <div class="stat-card rose">
+    <div class="stat-title">Watchlist Persons</div>
+    <div class="stat-val" id="kpi-suspects">{{ st.suspects }}</div>
+    <div class="stat-sub"><a href="/alerts" style="color: var(--rose); font-weight: 700;">View Alerts &rarr;</a></div>
+  </div>
+</div>
+
+<!-- System Telemetry & Engine Status Bar -->
+<div class="panel" style="padding: 10px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 12px;">
+  <div style="display: flex; gap: 20px; align-items: center; font-size: 12px; color: var(--text-secondary);">
+    <span>🖥️ CPU: <strong id="telemetry-cpu" style="font-family: monospace; color: var(--text);">{{ telemetry.cpu if telemetry else '0' }}%</strong></span>
+    <span>🧠 RAM: <strong id="telemetry-ram" style="font-family: monospace; color: var(--text);">{{ telemetry.ram if telemetry else '0' }}%</strong></span>
+    <span>💾 DB (WAL): <strong id="telemetry-db" style="font-family: monospace; color: var(--text);">{{ telemetry.db_size if telemetry else '0' }} MB</strong></span>
+    <span>🤖 AI NIM: <strong style="color: var(--primary);">{{ telemetry.model if telemetry else 'Nemotron' }}</strong></span>
+  </div>
+  <div style="font-size: 11px; font-family: monospace; color: var(--emerald); font-weight: 700; display: flex; align-items: center; gap: 6px;">
+    <span class="pulse-dot"></span> YuNet + SFace Biometrics Active
+  </div>
+</div>
+
+<!-- Main Operations Grid -->
+<div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px;">
+  <!-- Left Side: Live Matrix Preview & Hourly Activity -->
+  <div>
+    <!-- Live Feeds Quick Monitor -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          Active Surveillance Stream Monitor
+        </h3>
+        <div style="display: flex; gap: 8px;">
+          <a href="/live" class="btn btn-primary btn-sm">Full Matrix View</a>
+          <a href="/cameras" class="btn btn-ghost btn-sm">Manage Feeds</a>
+        </div>
+      </div>
+
+      <div class="cam-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        {% for c in cams %}
+        <div class="cam-box">
+          <div class="cam-header">
+            <span class="cam-title">
+              <span class="pulse-dot"></span>
+              {{ c.name }}
+            </span>
+            <span class="badge badge-live">LIVE</span>
+          </div>
+          <div class="video-frame-container" style="aspect-ratio: 16/9;">
+            <img src="/stream/{{ c.id }}" alt="{{ c.name }}" loading="lazy">
+            <div class="hud-overlay">
+              <span class="hud-badge">{{ c.type|upper }}</span>
+              <span class="hud-badge">{{ c.location or 'General' }}</span>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div style="padding: 40px; text-align: center; color: var(--text-dim); border: 2px dashed var(--border); border-radius: 8px; grid-column: 1 / -1;">
+          <p style="font-size: 14px; margin-bottom: 12px;">No active surveillance sources connected.</p>
+          <button class="btn btn-emerald btn-sm" onclick="openModal('webcam-modal')">📹 Connect Local Webcam</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Hourly Activity Chart -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          24-Hour Facial Detection Activity
+        </h3>
+        <span style="font-size: 12px; color: var(--text-dim);">Hourly volume (00:00 - 23:00)</span>
+      </div>
+
+      {% set mx = hours|max or 1 %}
+      <div class="chart-bars">
+        {% for n in hours %}
+        <div class="bar-col" title="{{ loop.index0 }}:00 - {{ n }} detections">
+          <div class="bar-fill {{ 'active-now' if loop.index0 == now_hour else '' }}"
+               style="height: {{ [((n / mx) * 100)|round, 4]|max }}%;"></div>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 11px; font-family: monospace; color: var(--text-muted); margin-top: 8px;">
+        <span>00:00</span>
+        <span>06:00</span>
+        <span>12:00</span>
+        <span>18:00</span>
+        <span>23:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Clean Alerts & Recent Detections -->
+  <div>
+    <!-- Dedicated Alerts Section Widget -->
+    <div class="panel" style="border-left: 4px solid var(--rose);">
+      <div class="panel-head">
+        <h3 style="color: var(--rose);">
+          🚨 Security Alerts & Incidents
+        </h3>
+        <a href="/alerts" class="btn btn-danger btn-sm" style="padding: 4px 10px; font-size: 11px;">Alerts Hub &rarr;</a>
+      </div>
+
+      <div id="dashboard-alerts-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto;">
+        <div style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 12px; background: #f8fafc; border-radius: 8px;">
+          🛡️ No active security violations.
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Detections Table -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Recent Sighting Activity</h3>
+        <a href="/sightings" style="font-size: 12px; color: var(--primary); font-weight: 600;">View All &rarr;</a>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Identity</th>
+              <th>Location</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="recent-table-body">
+            {% for r in recent[:8] %}
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  {% if r.image %}
+                  <img src="/static/{{ r.image }}" style="width:30px;height:30px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">
+                  {% endif %}
+                  <div>
+                    <a href="/people/{{ r.pid }}" style="font-weight:700;color:var(--text);text-decoration:none;">{{ r.name }}</a>
+                    <span style="display:block;font-size:10px;color:var(--text-muted);font-family:monospace;">{{ r.uid }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span style="font-weight:600;font-size:12px;">{{ r.cam }}</span>
+                {% if r.point %}<span style="font-size:10px;color:var(--amber);display:block;">{{ r.point }}</span>{% endif %}
+              </td>
+              <td style="font-family:monospace;font-size:11px;color:var(--text-dim);">
+                {{ r.ts.strftime('%H:%M:%S') }}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px;">No detections recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Real-time update of sightings count & table without intrusive popups
+  window.addEventListener('cctv_detection', function(e) {
+    const d = e.detail;
+    
+    // 1. Increment KPIs
+    const sightEl = document.getElementById('kpi-sightings');
+    if (sightEl) {
+      sightEl.textContent = parseInt(sightEl.textContent || '0') + 1;
+    }
+
+    // 2. If it's a suspect alert, display it in the Alerts widget
+    if (d.is_suspect && d.alert) {
+      const container = document.getElementById('dashboard-alerts-container');
+      if (container) {
+        const item = document.createElement('div');
+        item.style = "padding: 10px 12px; background: var(--rose-bg); border: 1px solid rgba(220,38,38,0.3); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;";
+        item.innerHTML = `
+          <div>
+            <strong style="color:var(--rose);font-size:12px;">🚨 ${d.person_name}</strong>
+            <span style="font-size:11px;color:var(--text-secondary);display:block;">${d.camera_name} · ${d.point || 'General'}</span>
+          </div>
+          <span style="font-size:11px;font-family:monospace;color:var(--text-dim);">${d.ts}</span>
+        `;
+        container.prepend(item);
+      }
+    }
+  });
+</script>
+{% endblock %}

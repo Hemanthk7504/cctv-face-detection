@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block h %}Biometric Face Registry{% endblock %}
+{% block sub %}Manage indexed individuals, security classifications & watchlist profiles{% endblock %}
+
+{% block actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('enroll-modal')">
+  👤 Enroll Person with Photo
+</button>
+{% endblock %}
+
+{% block body %}
+<!-- Filter & Search Toolbar -->
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <button class="btn btn-ghost btn-sm active" onclick="filterRole('all', this)">All ({{ people|length }})</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterRole('Staff', this)">Staff</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterRole('VIP', this)">VIP</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterRole('Visitor', this)">Visitors</button>
+    <button class="btn btn-danger btn-sm" onclick="filterRole('Banned', this)">🚨 Banned</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterRole('Contractor', this)">Contractors</button>
+    <button class="btn btn-ghost btn-sm" onclick="filterRole('Security', this)">Security</button>
+  </div>
+  <div style="width: 280px;">
+    <input type="text" id="person-search" placeholder="Search by name, UID or dept..." onkeyup="searchPeople()" style="margin: 0;">
+  </div>
+</div>
+
+<!-- People Grid Cards -->
+<div class="grid g3" id="people-cards-grid">
+  {% for p in people %}
+  <div class="panel person-card" data-role="{{ p.role or 'Visitor' }}" data-name="{{ p.name|lower }} {{ p.uid|lower }} {{ (p.department or '')|lower }}" style="display: flex; flex-direction: column; justify-content: space-between; border-top: 3px solid {% if p.role in ('Suspect', 'Banned') %}var(--rose){% elif p.role == 'VIP' %}var(--amber){% elif p.role == 'Staff' %}var(--cyan){% elif p.role == 'Security' %}#8b5cf6{% else %}var(--emerald){% endif %};">
+    <div>
+      <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 14px;">
+        <img src="/static/{{ p.image }}" alt="{{ p.name }}" style="width: 64px; height: 64px; border-radius: 10px; object-fit: cover; border: 2px solid var(--border-light); background: #f8fafc;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between;">
+            <a href="/people/{{ p.id }}" style="font-size: 16px; font-weight: 800; color: var(--text); text-decoration: none;">
+              {{ p.name }}
+            </a>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+            <span style="font-family: monospace; font-size: 11px; color: var(--text-dim);">{{ p.uid }}</span>
+            <span class="badge badge-{{ (p.role or 'visitor')|lower }}">{{ p.role or 'Visitor' }}</span>
+            {% if p.badge_number %}<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:10px;">#{{ p.badge_number }}</span>{% endif %}
+            {% if p.threat_level and p.threat_level != 'Low' %}
+            <span class="badge badge-suspect" style="font-size: 9px;">{{ p.threat_level }}</span>
+            {% endif %}
+          </div>
+          {% if p.job_title or p.department %}
+          <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px; font-weight: 600;">
+            {{ p.job_title }} {% if p.job_title and p.department %}·{% endif %} {{ p.department }}
+          </div>
+          {% endif %}
+          {% if p.access_level and p.access_level != 'Standard Access' %}
+          <div style="font-size: 10px; color: var(--primary); margin-top: 2px;">
+            🔑 {{ p.access_level }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div>
+          <span style="color: var(--text-dim); display: block; font-size: 10px; text-transform: uppercase;">Sightings</span>
+          <strong style="color: var(--text); font-size: 14px; font-family: monospace;">{{ p.n }}</strong>
+        </div>
+        <div>
+          <span style="color: var(--text-dim); display: block; font-size: 10px; text-transform: uppercase;">Last Sighted</span>
+          <span style="color: var(--text-dim); font-size: 11px;">{{ p.last.strftime('%d %b, %H:%M') if p.last else 'Never' }}</span>
+        </div>
+      </div>
+      
+      {% if p.notes %}
+      <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 14px; font-style: italic;">
+        "{{ p.notes }}"
+      </p>
+      {% endif %}
+    </div>
+
+    <div style="border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+      <a href="/people/{{ p.id }}" class="btn btn-ghost btn-sm" style="flex: 1; justify-content: center; margin-right: 6px;">
+        View Dossier
+      </a>
+      <button class="btn btn-ghost btn-sm" onclick="openEditModal('{{ p.id }}', '{{ p.name }}', '{{ p.role or 'Visitor' }}', '{{ p.department or '' }}', '{{ p.threat_level or 'Low' }}', '{{ p.notes or '' }}')" title="Edit Identity">
+        ✏️
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="openMergeModal('{{ p.id }}', '{{ p.name }}')" title="Merge Identity">
+        🔀
+      </button>
+      <form method="post" action="/people/{{ p.id }}/delete" onsubmit="return confirm('Delete profile for {{ p.name }}?');" style="margin: 0; margin-left: 4px;">
+        <button class="btn btn-danger btn-sm" title="Delete Profile">🗑️</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div style="grid-column: 1 / -1; padding: 48px; text-align: center; color: var(--text-dim); background: var(--surface); border: 2px dashed var(--border); border-radius: 12px;">
+    No identities enrolled yet. Click <strong>Enroll Person with Photo</strong> above to index authorized staff or individuals.
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Edit Profile Modal -->
+<div id="edit-person-modal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Edit Person Classification & Clearance</h3>
+      <button class="modal-close" onclick="closeModal('edit-person-modal')">&times;</button>
+    </div>
+    <form id="edit-person-form" method="post" class="modal-body">
+      <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label>Full Legal Name</label>
+          <input id="edit-name" name="name" required>
+        </div>
+        <div class="form-group">
+          <label>Employee / Badge #</label>
+          <input id="edit-badge" name="badge_number" placeholder="e.g. EMP-102">
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label>Security Role / Classification</label>
+          <select id="edit-role" name="role">
+            <option value="Visitor">Visitor (Standard)</option>
+            <option value="Staff">Staff / Employee</option>
+            <option value="VIP">VIP / Priority</option>
+            <option value="Banned">Banned / Blacklist (Critical Alert)</option>
+            <option value="Contractor">Contractor / Vendor</option>
+            <option value="Security">Security Personnel</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Access Clearance Level</label>
+          <select id="edit-access" name="access_level">
+            <option value="Standard Access">Standard Access</option>
+            <option value="All Areas Access">All Areas Access (Master)</option>
+            <option value="Level 1 - Public">Level 1 - Public</option>
+            <option value="Level 2 - Staff Only">Level 2 - Staff Only</option>
+            <option value="Level 3 - Datacenter">Level 3 - Datacenter</option>
+            <option value="Escort Required">Escort Required</option>
+            <option value="Restricted">Restricted</option>
+          </select>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label>Job Title / Designation</label>
+          <input id="edit-title" name="job_title" placeholder="e.g. Facilities Manager">
+        </div>
+        <div class="form-group">
+          <label>Department / Organization</label>
+          <input id="edit-dept" name="department" placeholder="e.g. IT Operations">
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label>Phone Contact</label>
+          <input id="edit-phone" name="phone" placeholder="+1...">
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input id="edit-email" name="email" placeholder="user@domain.com">
+        </div>
+        <div class="form-group">
+          <label>Threat Level</label>
+          <select id="edit-threat" name="threat_level">
+            <option value="Low">Low Risk</option>
+            <option value="Medium">Medium Risk</option>
+            <option value="High">High Risk</option>
+            <option value="Critical">Critical Priority</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Operational Clearance & Directives</label>
+        <input id="edit-notes" name="notes" placeholder="Notes, special instructions">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('edit-person-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Face Details</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Merge Duplicates Modal -->
+<div id="merge-modal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Merge Duplicate Profiles</h3>
+      <button class="modal-close" onclick="closeModal('merge-modal')">&times;</button>
+    </div>
+    <form id="merge-form" method="post" class="modal-body">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+        Merge <strong id="merge-source-name" style="color:var(--text);"></strong> into an existing profile. All past detections will be transferred, and the duplicate will be removed.
+      </p>
+      <div class="form-group">
+        <label>Target Identity Name or UID (e.g. P-0001)</label>
+        <input name="into" placeholder="Enter target UID or Name" required>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('merge-modal')">Cancel</button>
+        <button type="submit" class="btn btn-danger">Confirm Merge</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openEditModal(pid, name, role, dept, title, badge, access, phone, email, threat, notes) {
+    document.getElementById('edit-person-form').action = `/people/${pid}/update`;
+    document.getElementById('edit-name').value = name || '';
+    document.getElementById('edit-role').value = role || 'Visitor';
+    document.getElementById('edit-dept').value = dept || '';
+    document.getElementById('edit-title').value = title || '';
+    document.getElementById('edit-badge').value = badge || '';
+    document.getElementById('edit-access').value = access || 'Standard Access';
+    document.getElementById('edit-phone').value = phone || '';
+    document.getElementById('edit-email').value = email || '';
+    document.getElementById('edit-threat').value = threat || 'Low';
+    document.getElementById('edit-notes').value = notes || '';
+    openModal('edit-person-modal');
+  }
+
+  function openMergeModal(pid, name) {
+    document.getElementById('merge-form').action = `/people/${pid}/merge`;
+    document.getElementById('merge-source-name').textContent = name;
+    openModal('merge-modal');
+  }
+
+  function filterRole(role, btn) {
+    document.querySelectorAll('.person-card').forEach(card => {
+      if (role === 'all' || card.dataset.role === role) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function searchPeople() {
+    const q = document.getElementById('person-search').value.toLowerCase();
+    document.querySelectorAll('.person-card').forEach(card => {
+      if (card.dataset.name.includes(q)) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+</script>
+{% endblock %}

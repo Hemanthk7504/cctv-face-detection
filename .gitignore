@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Secrets & Environment variables
+.env
+!.env.example
+
+# Database & Runtime Data
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/test.db
+data/videos/*.avi
+data/videos/*.mp4
+!data/videos/.gitkeep
+
+# Generated Crops & Snapshots
+app/static/crops/*
+!app/static/crops/.gitkeep
+app/static/snapshots/*
+!app/static/snapshots/.gitkeep
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing & Logs
+.pytest_cache/
+*.log

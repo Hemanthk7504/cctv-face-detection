@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block h %}Security Alert & Incident Center{% endblock %}
+{% block sub %}Real-time watchlist alerts, unauthorized intrusions & anomaly tracking{% endblock %}
+
+{% block actions %}
+<button class="btn btn-ghost btn-sm" onclick="clearAllAlerts()">
+  🧹 Clear All Alerts
+</button>
+<a href="/live" class="btn btn-primary btn-sm">
+  📹 Live Surveillance Matrix &rarr;
+</a>
+{% endblock %}
+
+{% block body %}
+<!-- Alert Filter Bar -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div style="display: flex; gap: 8px;">
+    <a href="/alerts" class="btn {{ 'btn-primary' if not selected_severity else 'btn-ghost' }} btn-sm">All Alerts</a>
+    <a href="/alerts?severity=CRITICAL" class="btn {{ 'btn-danger' if selected_severity == 'CRITICAL' else 'btn-ghost' }} btn-sm">🚨 Watchlist / Suspects</a>
+    <a href="/alerts?severity=WARNING" class="btn {{ 'btn-primary' if selected_severity == 'WARNING' else 'btn-ghost' }} btn-sm">⚠️ Unregistered Faces</a>
+  </div>
+  <div style="font-size: 13px; color: var(--text-dim);">
+    Showing <strong>{{ alerts|length }}</strong> security incidents
+  </div>
+</div>
+
+<!-- Alerts Container -->
+<div class="panel">
+  <div class="panel-head">
+    <h3>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      Security Incident Log
+    </h3>
+  </div>
+
+  <div id="alerts-list-wrapper" style="display: flex; flex-direction: column; gap: 12px;">
+    {% for a in alerts %}
+    <div class="alert-box {{ 'critical' if a.severity == 'CRITICAL' else 'warning' }}" id="alert-row-{{ a.id }}" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-radius: 10px; background: {% if a.severity == 'CRITICAL' %}var(--rose-bg){% else %}var(--card){% endif %}; border: 1px solid {% if a.severity == 'CRITICAL' %}rgba(220, 38, 38, 0.4){% else %}var(--border){% endif %};">
+      <div style="display: flex; align-items: center; gap: 16px; min-width: 0;">
+        {% if a.image %}
+        <img src="/static/{{ a.image }}" alt="{{ a.person_name }}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover; border: 2px solid {% if a.severity == 'CRITICAL' %}var(--rose){% else %}var(--border-light){% endif %}; background: #000;">
+        {% else %}
+        <div style="width: 48px; height: 48px; border-radius: 8px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+          {% if a.severity == 'CRITICAL' %}🚨{% else %}⚠️{% endif %}
+        </div>
+        {% endif %}
+
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <strong style="font-size: 15px; color: {% if a.severity == 'CRITICAL' %}var(--rose){% else %}var(--text){% endif %};">
+              {{ a.title }}
+            </strong>
+            <span class="badge badge-{{ (a.person_role or 'visitor')|lower }}">{{ a.person_role }}</span>
+            <span class="badge {{ 'badge-suspect' if a.severity == 'CRITICAL' else 'badge-visitor' }}">
+              {{ a.severity }}
+            </span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap;">
+            <span>📹 <strong>{{ a.camera_name }}</strong></span>
+            <span>📍 Zone: <strong>{{ a.point }}</strong></span>
+            <span>⏱️ {{ a.time }} ({{ a.date }})</span>
+            {% if a.similarity %}<span>🎯 Confidence: {{ a.similarity }}%</span>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        {% if a.person_id %}
+        <a href="/people/{{ a.person_id }}" class="btn btn-ghost btn-sm">Dossier</a>
+        {% endif %}
+        <a href="/live#cam-box-{{ a.camera_id }}" class="btn btn-primary btn-sm">View Feed</a>
+        <button class="btn btn-ghost btn-sm" onclick="dismissAlert('{{ a.id }}')" title="Dismiss Alert">
+          ✕
+        </button>
+      </div>
+    </div>
+    {% else %}
+    <div style="padding: 60px 20px; text-align: center; color: var(--text-dim);">
+      <div style="font-size: 44px; margin-bottom: 12px;">🛡️</div>
+      <h3 style="font-size: 18px; color: var(--text); margin-bottom: 6px;">Perimeter Secure · No Active Alerts</h3>
+      <p style="font-size: 13px; max-width: 440px; margin: 0 auto;">
+        All camera feeds are normal. When a registered suspect or unauthorized presence is spotted, alert telemetry will appear here quietly without intrusive popups.
+      </p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  async function dismissAlert(alertId) {
+    try {
+      await fetch(`/api/v1/alerts/${alertId}/dismiss`, { method: 'POST' });
+      const row = document.getElementById('alert-row-' + alertId);
+      if (row) {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(-10px)';
+        row.style.transition = 'all 0.25s ease';
+        setTimeout(() => row.remove(), 250);
+      }
+    } catch(err) {
+      alert("Error dismissing alert: " + err);
+    }
+  }
+
+  async function clearAllAlerts() {
+    if (!confirm("Clear all security alerts from this log?")) return;
+    try {
+      await fetch('/api/v1/alerts/clear', { method: 'POST' });
+      location.reload();
+    } catch(err) {
+      alert("Error clearing alerts: " + err);
+    }
+  }
+</script>
+{% endblock %}

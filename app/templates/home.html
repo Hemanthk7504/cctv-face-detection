@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block body %}
+<div class="card" style="text-align:center;padding:48px 20px">
+<h1 style="margin:0 0 8px">Know who was where, and when</h1>
+<p class="mut" style="max-width:560px;margin:0 auto 22px">Recognize faces on CCTV, give each person a unique ID, track them across cameras, and ask questions in plain English.</p>
+<a class="btn" href="/cameras">Add camera or video</a> <a class="btn" style="background:#0f172a" href="/live">Open live view</a></div>
+<div class="grid">
+<div class="card"><h2>{{ st.cams }}</h2><span class="mut">Cameras and videos</span></div>
+<div class="card"><h2>{{ st.people }}</h2><span class="mut">People with unique IDs</span></div>
+<div class="card"><h2>{{ st.sightings }}</h2><span class="mut">Sightings logged</span></div></div>
+<div class="grid">
+<div class="card"><b>1. Connect</b><p class="mut">Add an RTSP CCTV link or upload a video file.</p></div>
+<div class="card"><b>2. Recognize</b><p class="mut">YuNet finds faces, SFace matches them to a unique ID.</p></div>
+<div class="card"><b>3. Mark places</b><p class="mut">Double-click on the feed to add or remove a location point.</p></div>
+<div class="card"><b>4. Ask</b><p class="mut">An NVIDIA LLM answers questions like "What did Zaid do at 5 PM?"</p></div></div>
+{% endblock %}

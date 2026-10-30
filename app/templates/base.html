@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>{% block title %}FaceTrack CCTV | Operations Center{% endblock %}</title>
+  {% include "_head.html" %}
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <a href="/" class="brand">
+        <div class="radar-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path>
+            <path d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 8a2 2 0 1 1 2-2 2 2 0 0 1-2 2z"></path>
+            <path d="M12 2v10l7 4"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h2>FaceTrack AI</h2>
+          <span>Surveillance Hub</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="/" class="nav-item {{ 'active' if active == 'dashboard' or active == 'home' else '' }}">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Dashboard
+        </a>
+        <a href="/live" class="nav-item {{ 'active' if active == 'live' else '' }}">
+          <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+          Live Feeds Matrix
+        </a>
+        <a href="/alerts" class="nav-item {{ 'active' if active == 'alerts' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Security Alerts
+          <span id="nav-alert-badge" class="badge badge-danger" style="display: none; margin-left: auto; font-size: 10px; padding: 1px 6px;">0</span>
+        </a>
+        <a href="/people" class="nav-item {{ 'active' if active == 'people' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Face Registry
+        </a>
+        <a href="/sightings" class="nav-item {{ 'active' if active == 'sightings' else '' }}">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          Sighting Intel
+        </a>
+        <a href="/cameras" class="nav-item {{ 'active' if active == 'cameras' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          Camera Hub
+        </a>
+        <a href="/ask" class="nav-item {{ 'active' if active == 'ask' else '' }}">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          AI Analyst
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="live-indicator">
+          <span class="pulse-dot"></span>
+          <span>SYSTEM ACTIVE</span>
+        </div>
+        <div style="font-size: 11px; font-family: monospace; color: var(--text-dim); display: flex; justify-content: space-between;">
+          <span id="live-clock">--:--:--</span>
+          <span>ONLINE</span>
+        </div>
+        <a href="/alerts" class="btn btn-ghost btn-sm" style="justify-content: center; width: 100%; border-color: var(--border);">
+          🚨 View Alerts Center
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <header class="top-bar">
+        <div class="page-title">
+          <h1>{% block h %}Operations Command Dashboard{% endblock %}</h1>
+          <p>{% block sub %}Real-time CCTV biometric facial recognition & intelligence{% endblock %}</p>
+        </div>
+        <div class="top-actions">
+          {% block actions %}
+          <a href="/alerts" class="btn btn-danger btn-sm">
+            🚨 Alerts Center
+          </a>
+          <button class="btn btn-emerald btn-sm" onclick="openModal('webcam-modal')">
+            📹 Connect Webcam
+          </button>
+          <a class="btn btn-primary btn-sm" href="/cameras">
+            ➕ Add Feed
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('enroll-modal')">
+            👤 Enroll Face
+          </button>
+          {% endblock %}
+        </div>
+      </header>
+
+      <main class="content-body">
+        {% block body %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- Global Modals -->
+  <!-- 1. Quick Webcam Modal -->
+  <div id="webcam-modal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Connect Local Webcam</h3>
+        <button class="modal-close" onclick="closeModal('webcam-modal')">&times;</button>
+      </div>
+      <form action="/cameras/webcam" method="post" class="modal-body">
+        <div class="form-group">
+          <label>Camera Label</label>
+          <input name="name" value="Local Webcam 1" required>
+        </div>
+        <div class="form-group">
+          <label>Device Index</label>
+          <input type="number" name="device_index" value="0" min="0" max="10" required>
+          <small style="color: var(--text-dim); display: block; margin-top: 4px;">0 is usually default integrated webcam, 1 is external USB camera.</small>
+        </div>
+        <div class="form-group">
+          <label>Location / Zone</label>
+          <input name="location" value="Main Terminal">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('webcam-modal')">Cancel</button>
+          <button type="submit" class="btn btn-emerald">Start Live Feed</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Enroll Person Modal -->
+  <div id="enroll-modal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Enroll Identity into Face Registry</h3>
+        <button class="modal-close" onclick="closeModal('enroll-modal')">&times;</button>
+      </div>
+      <form action="/people/enroll" method="post" enctype="multipart/form-data" class="modal-body">
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Full Legal Name</label>
+            <input name="name" placeholder="e.g. John Doe" required>
+          </div>
+          <div class="form-group">
+            <label>Badge / Employee #</label>
+            <input name="badge_number" placeholder="e.g. EMP-1049">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Security Classification</label>
+            <select name="role">
+              <option value="Visitor">Visitor (Standard)</option>
+              <option value="Staff">Staff / Employee</option>
+              <option value="VIP">VIP / Executive</option>
+              <option value="Banned">Banned / Blacklist (Critical Alert)</option>
+              <option value="Contractor">Contractor / Vendor</option>
+              <option value="Security">Security Personnel</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Access Clearance</label>
+            <select name="access_level">
+              <option value="Standard Access">Standard Access</option>
+              <option value="All Areas Access">All Areas Access (Master)</option>
+              <option value="Level 1 - Public">Level 1 - Public Only</option>
+              <option value="Level 2 - Staff Only">Level 2 - Staff Only</option>
+              <option value="Level 3 - Datacenter">Level 3 - Datacenter</option>
+              <option value="Escort Required">Escort Required</option>
+              <option value="Restricted">Restricted (Deny Entry)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Job Title / Designation</label>
+            <input name="job_title" placeholder="e.g. Security Lead, IT Ops">
+          </div>
+          <div class="form-group">
+            <label>Department / Organization</label>
+            <input name="department" placeholder="e.g. Facilities, Engineering">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Phone / Contact</label>
+            <input name="phone" placeholder="+1 (555) 000-0000">
+          </div>
+          <div class="form-group">
+            <label>Threat Level</label>
+            <select name="threat_level">
+              <option value="Low">Low Risk</option>
+              <option value="Medium">Medium Risk</option>
+              <option value="High">High Risk</option>
+              <option value="Critical">Critical Priority</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Notes / Directives</label>
+          <input name="notes" placeholder="Access clearance, emergency contacts, escort instructions">
+        </div>
+        <div class="form-group">
+          <label>Primary Portrait Photo (JPG / PNG)</label>
+          <input type="file" name="file" accept="image/*" required>
+          <small style="color: var(--text-dim); display: block; margin-top: 4px;">SFace extractor will generate a 128-d biometric vector from facial landmarks.</small>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('enroll-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Enroll Biometric Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Real-Time Clock, Telemetry & Quiet Event Listener -->
+  <script>
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('live-clock').textContent = now.toTimeString().split(' ')[0];
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    async function syncAlertBadge() {
+      try {
+        const res = await fetch('/api/v1/alerts');
+        const list = await res.json();
+        const badge = document.getElementById('nav-alert-badge');
+        if (badge) {
+          if (list && list.length > 0) {
+            badge.textContent = list.length;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+      } catch(e) {}
+    }
+    setInterval(syncAlertBadge, 5000);
+    syncAlertBadge();
+
+    // Global quiet SSE Listener (dispatches event quietly without intrusive popups)
+    function initEventStream() {
+      try {
+        const evtSource = new EventSource('/api/v1/events/stream');
+        evtSource.onmessage = function(e) {
+          try {
+            const data = JSON.parse(e.data);
+            window.dispatchEvent(new CustomEvent('cctv_detection', { detail: data }));
+            if (data.event === 'alert' || data.is_suspect) {
+              syncAlertBadge();
+            }
+          } catch(err) {}
+        };
+        evtSource.onerror = function() {
+          evtSource.close();
+          setTimeout(initEventStream, 4000);
+        };
+      } catch(err) {}
+    }
+    initEventStream();
+  </script>
+</body>
+</html>

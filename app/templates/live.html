@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block h %}Live Surveillance Matrix{% endblock %}
+{% block sub %}Real-time multi-camera facial recognition & telemetry hub{% endblock %}
+
+{% block actions %}
+<div style="display: flex; gap: 8px; align-items: center;">
+  <!-- Layout Switcher -->
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2px; display: flex;">
+    <button class="btn btn-ghost btn-sm" onclick="setMatrixLayout('1x1')" title="Single Large View">1x1</button>
+    <button class="btn btn-ghost btn-sm" onclick="setMatrixLayout('2x2')" title="2x2 Grid View">2x2</button>
+    <button class="btn btn-ghost btn-sm" onclick="setMatrixLayout('3x3')" title="3x3 Multi-Cam">3x3</button>
+    <button class="btn btn-ghost btn-sm" onclick="setMatrixLayout('auto')" title="Adaptive Grid">Auto</button>
+  </div>
+  <button class="btn btn-emerald btn-sm" onclick="openModal('webcam-modal')">
+    📹 Connect Webcam
+  </button>
+  <button class="btn btn-primary btn-sm" onclick="startBrowserWebcam()">
+    💻 Use In-Browser Camera
+  </button>
+</div>
+{% endblock %}
+
+{% block body %}
+<!-- Tip / Instructions bar -->
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+  <div style="font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+    <span style="color: var(--primary); font-weight: 700;">💡 Tip:</span>
+    Double-click anywhere on a video feed to place or toggle a <strong>Spatial Location Zone</strong> (e.g. Entrance, Cashier, Turnstile).
+  </div>
+  <div style="font-size: 12px; font-family: monospace; color: var(--emerald); font-weight: 700;">
+    <span class="pulse-dot"></span> LIVE SENSORS ONLINE
+  </div>
+</div>
+
+<!-- Camera Matrix Grid -->
+<div id="cam-matrix" class="cam-grid">
+  {% for c in cams %}
+  {% set w = workers.get(c.id) %}
+  <div class="cam-box" id="cam-box-{{ c.id }}">
+    <div class="cam-header">
+      <div class="cam-title">
+        <span class="pulse-dot"></span>
+        <span>{{ c.name }}</span>
+        <span class="badge badge-visitor" style="font-size: 10px;">{{ c.type|upper }}</span>
+        {% if c.location %}<span style="font-size: 11px; color: var(--text-dim);">· {{ c.location }}</span>{% endif %}
+      </div>
+      <div class="cam-actions">
+        <span class="badge badge-live" id="fps-badge-{{ c.id }}">
+          {{ w.fps if w else '0' }} FPS
+        </span>
+        <button class="btn btn-ghost btn-sm" style="padding: 4px 8px;" onclick="takeSnapshot('{{ c.id }}', '{{ c.name }}')" title="Capture Snapshot">
+          📸
+        </button>
+        <button class="btn btn-ghost btn-sm" style="padding: 4px 8px;" onclick="toggleFullscreen('cam-box-{{ c.id }}')" title="Toggle Fullscreen">
+          ⛶
+        </button>
+        <form method="post" action="/cameras/{{ c.id }}/restart" style="display:inline; margin: 0;">
+          <button class="btn btn-ghost btn-sm" style="padding: 4px 8px;" title="Restart Stream">
+            🔄
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="video-frame-container" id="frame-wrap-{{ c.id }}">
+      <img class="feed-img" src="/stream/{{ c.id }}" data-cam="{{ c.id }}" alt="{{ c.name }}" id="feed-{{ c.id }}">
+      <div class="hud-overlay">
+        <span class="hud-badge" id="res-badge-{{ c.id }}">{{ w.resolution if w else 'SYNC' }}</span>
+        <span class="hud-badge" id="faces-badge-{{ c.id }}">{{ w.active_faces if w else 0 }} FACES IN SIGHT</span>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: var(--surface); border: 2px dashed var(--border); border-radius: 12px;">
+    <div style="font-size: 40px; margin-bottom: 14px;">📹</div>
+    <h3 style="font-size: 18px; color: var(--text); margin-bottom: 8px;">No Surveillance Feeds Connected</h3>
+    <p style="color: var(--text-dim); max-width: 480px; margin: 0 auto 20px;">
+      Connect your local device webcam, add an IP RTSP CCTV feed, or upload a surveillance video recording to start real-time face detection.
+    </p>
+    <div style="display: flex; justify-content: center; gap: 12px;">
+      <button class="btn btn-emerald" onclick="openModal('webcam-modal')">📹 Quick Connect Webcam (0)</button>
+      <a href="/cameras" class="btn btn-primary">Add Feed or Video</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Real-Time Identity Recognition Stream (Live Face Details) -->
+<div class="panel" style="margin-top: 24px;">
+  <div class="panel-head">
+    <div>
+      <h3>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        Live Biometric Identity Stream
+      </h3>
+      <span style="font-size: 12px; color: var(--text-dim);">Detailed identity cards for people detected in real-time across all CCTV feeds</span>
+    </div>
+    <span class="badge badge-live"><span class="pulse-dot"></span> LIVE TELEMETRY</span>
+  </div>
+
+  <div id="live-face-stream" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px;">
+    <div id="no-live-faces-placeholder" style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--text-dim); background: var(--card); border-radius: 8px;">
+      ⏳ Watching active video streams... Identified faces and their full security credentials will appear here automatically.
+    </div>
+  </div>
+</div>
+
+<!-- Browser Webcam Client Modal / Container -->
+<div id="browser-cam-modal" class="modal-overlay">
+  <div class="modal-dialog" style="max-width: 680px;">
+    <div class="modal-header">
+      <h3>In-Browser Direct Camera Stream</h3>
+      <button class="modal-close" onclick="stopBrowserWebcam()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden;">
+        <video id="browser-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+        <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--emerald); font-weight: 700;">
+          <span class="pulse-dot"></span> BROWSER WEBCAM ACTIVE
+        </div>
+      </div>
+      <p style="font-size: 12px; color: var(--text-dim); margin-top: 12px;">
+        This stream accesses your browser camera directly via HTML5 MediaDevices. You can also connect it to the backend via <strong>Connect Webcam (Device 0)</strong> for continuous background analysis.
+      </p>
+      <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+        <button class="btn btn-ghost" onclick="stopBrowserWebcam()">Close Stream</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setMatrixLayout(layout) {
+    const grid = document.getElementById('cam-matrix');
+    grid.className = 'cam-grid';
+    if (layout === '1x1') grid.classList.add('layout-1x1');
+    else if (layout === '2x2') grid.classList.add('layout-2x2');
+    else if (layout === '3x3') grid.classList.add('layout-3x3');
+    localStorage.setItem('facetrack_matrix_layout', layout);
+  }
+  const savedLayout = localStorage.getItem('facetrack_matrix_layout');
+  if (savedLayout) setMatrixLayout(savedLayout);
+
+  function toggleFullscreen(elementId) {
+    const el = document.getElementById(elementId);
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(err => alert(`Fullscreen error: ${err.message}`));
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  function takeSnapshot(cid, name) {
+    const img = document.getElementById('feed-' + cid);
+    if (!img) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || 1280;
+    canvas.height = img.naturalHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const link = document.createElement('a');
+    link.download = `cctv_${name}_snapshot_${Date.now()}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+  }
+
+  document.querySelectorAll('img.feed-img').forEach(im => {
+    im.addEventListener('dblclick', async (e) => {
+      const r = im.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width;
+      const y = (e.clientY - r.top) / r.height;
+      const label = prompt("Enter Zone / Location Name (leave empty for auto letter, or type existing to delete):", "");
+      if (label === null) return;
+
+      try {
+        const res = await fetch(`/api/v1/cameras/${im.dataset.cam}/points/toggle`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ x: x, y: y, label: label })
+        });
+        const out = await res.json();
+        alert(`Location Zone ${out.action}: ${out.label}`);
+      } catch(err) {
+        alert("Could not update zone: " + err);
+      }
+    });
+  });
+
+  let browserStream = null;
+  async function startBrowserWebcam() {
+    openModal('browser-cam-modal');
+    const video = document.getElementById('browser-video');
+    try {
+      browserStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+      video.srcObject = browserStream;
+    } catch(err) {
+      alert("Browser camera access denied or unavailable: " + err.message);
+      closeModal('browser-cam-modal');
+    }
+  }
+
+  function stopBrowserWebcam() {
+    if (browserStream) {
+      browserStream.getTracks().forEach(track => track.stop());
+      browserStream = null;
+    }
+    closeModal('browser-cam-modal');
+  }
+
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/v1/cameras');
+      const list = await res.json();
+      list.forEach(c => {
+        const fpsBadge = document.getElementById('fps-badge-' + c.id);
+        if (fpsBadge) fpsBadge.textContent = `${c.fps || 0} FPS`;
+        const resBadge = document.getElementById('res-badge-' + c.id);
+        if (resBadge && c.resolution) resBadge.textContent = c.resolution;
+        const facesBadge = document.getElementById('faces-badge-' + c.id);
+        if (facesBadge) facesBadge.textContent = `${c.active_faces || 0} FACES IN SIGHT`;
+      });
+    } catch(e) {}
+  }, 2500);
+
+  // Live face identity cards stream
+  window.addEventListener('cctv_detection', function(e) {
+    const d = e.detail;
+    if (!d || !d.person_name) return;
+    const placeholder = document.getElementById('no-live-faces-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const stream = document.getElementById('live-face-stream');
+    let card = document.getElementById('live-person-' + d.person_id);
+    const roleClass = (d.person_role || 'visitor').toLowerCase();
+    const borderCol = (d.person_role === 'Banned' || d.person_role === 'Suspect') ? 'var(--rose)' : (d.person_role === 'VIP' ? 'var(--amber)' : (d.person_role === 'Staff' ? 'var(--cyan)' : 'var(--emerald)'));
+
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'live-person-' + d.person_id;
+      card.className = 'panel';
+      card.style = `padding: 14px; margin: 0; border-left: 4px solid ${borderCol}; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04);`;
+      stream.prepend(card);
+    }
+
+    card.innerHTML = `
+      <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px;">
+        <img src="/static/${d.image || d.crop || ''}" alt="${d.person_name}" style="width: 56px; height: 56px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);">
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="/people/${d.person_id}" style="font-weight: 800; color: var(--text); font-size: 15px; text-decoration: none;">
+              ${d.person_name}
+            </a>
+            <span class="badge badge-${roleClass}">${d.person_role}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+            ${d.job_title || d.department || 'Visitor'} · <strong style="color:var(--primary);">${d.similarity}% match</strong>
+          </div>
+        </div>
+      </div>
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
+        <div>📍 <strong>${d.camera_name}</strong> · ${d.point || 'General Area'}</div>
+        <div style="display: flex; justify-content: space-between; margin-top: 3px; font-family: monospace; font-size: 10px; color: var(--text-dim);">
+          <span>Badge: ${d.badge_number || d.person_uid}</span>
+          <span>${d.ts}</span>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 6px;">
+        <a href="/people/${d.person_id}" class="btn btn-ghost btn-sm" style="flex: 1; justify-content: center; font-size: 11px;">
+          View Full Dossier &rarr;
+        </a>
+      </div>
+    `;
+  });
+</script>
+{% endblock %}
